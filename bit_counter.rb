@@ -1,8 +1,7 @@
 # The machine is assumed to start on the most significant
-# bit of the input number n. It will work until it reaches
-# its terminating accept state 7, at which point the
-# tape head should be on the least significant bit
-# of the output result k.
+# bit of the input number n. It will work until it gets stuck,
+# at which point the tape head should be on the least significant
+# bit of the output result k.
 #
 # Encoding is just numbers in binary.
 
@@ -21,36 +20,33 @@ class Tape
 end
 
 MACHINE_RULEBOOK = DTMRulebook.new([
-  TMRule.new(0, '0', 0, '0', :right),
-  TMRule.new(0, '1', 1, '1', :right),
-  TMRule.new(0, '_', 7, '_', :left),
-  TMRule.new(1, '0', 1, '0', :right),
-  TMRule.new(1, '1', 1, '1', :right),
-  TMRule.new(1, '_', 2, '_', :left),
-  TMRule.new(2, '0', 3, '_', :left),
-  TMRule.new(2, '1', 3, '_', :left),
-  TMRule.new(2, '_', 7, '_', :left),
-  TMRule.new(3, '0', 3, '0', :left),
-  TMRule.new(3, '1', 3, '1', :left),
-  TMRule.new(3, '_', 4, '_', :left),
-  TMRule.new(4, '0', 6, '1', :right),
-  TMRule.new(4, '1', 5, '0', :left),
-  TMRule.new(4, '_', 6, '1', :right),
-  TMRule.new(5, '0', 6, '1', :right),
-  TMRule.new(5, '1', 5, '0', :left),
-  TMRule.new(5, '_', 6, '1', :right),
-  TMRule.new(6, '0', 6, '0', :right),
-  TMRule.new(6, '1', 6, '1', :right),
-  TMRule.new(6, '_', 1, '_', :right),
+  TMRule.new(:id_most_significant_bit,  '1', :increment_counter,        'X', :left),
+  TMRule.new(:delete_next_bit,          '0', :increment_counter,        'X', :left),
+  TMRule.new(:delete_next_bit,          '1', :increment_counter,        'X', :left),
+  TMRule.new(:delete_next_bit,          'X', :delete_next_bit,          'X', :right),
+  TMRule.new(:increment_counter,        'X', :increment_counter,        'X', :left),
+  TMRule.new(:increment_counter,        '0', :return_to_input,          '1', :right),
+  TMRule.new(:increment_counter,        '1', :increment_counter,        '0', :left),
+  TMRule.new(:increment_counter,        '_', :return_to_input,          '1', :right),
+  TMRule.new(:return_to_input,          '0', :return_to_input,          '0', :right),
+  TMRule.new(:return_to_input,          '1', :return_to_input,          '1', :right),
+  TMRule.new(:return_to_input,          'X', :delete_next_bit,          'X', :right),
 ])
 
 class TestMachine < MiniTest::Unit::TestCase
   def build_machine(n)
+    configuration = TMConfiguration.new(initial_state, input_tape(n))
+    accept_states = []
+    DTM.new(configuration, accept_states, MACHINE_RULEBOOK)
+  end
+
+  def input_tape(n)
     head, *rest = n.to_s(2).chars
     tape = Tape.new([], head, rest, '_')
-    configuration = TMConfiguration.new(0, tape)
-    accept_states = [7]
-    DTM.new(configuration, accept_states, MACHINE_RULEBOOK)
+  end
+
+  def initial_state
+    :id_most_significant_bit
   end
 
   def run_machine(n)
